@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Load environment variables from .env file
 dotenv.config();
@@ -71,6 +71,22 @@ async function run() {
         res.status(500).send({ message: "Failed to create parcel" });
       }
     });
+
+    // DELETE parcel by id
+app.delete("/parcels/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const query = { _id: new ObjectId(id) };
+
+    const result = await parcelCollection.deleteOne(query);
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
