@@ -58,6 +58,24 @@ async function run() {
       }
     });
 
+    // GET parcel by id
+    app.get("/parcels/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+        const parcel = await parcelCollection.findOne(query);
+
+        if (!parcel) {
+          return res.status(404).send({ message: "Parcel not found" });
+        }
+
+        res.send(parcel);
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
     // POST: Create a new parcel
     app.post("/parcels", async (req, res) => {
       try {
@@ -73,20 +91,19 @@ async function run() {
     });
 
     // DELETE parcel by id
-app.delete("/parcels/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
+    app.delete("/parcels/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
 
-    const query = { _id: new ObjectId(id) };
+        const query = { _id: new ObjectId(id) };
 
-    const result = await parcelCollection.deleteOne(query);
+        const result = await parcelCollection.deleteOne(query);
 
-    res.send(result);
-  } catch (error) {
-    res.status(500).send({ error: error.message });
-  }
-});
-
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
