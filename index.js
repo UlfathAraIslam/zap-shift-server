@@ -106,7 +106,57 @@ async function run() {
         res.status(500).send({ error: error.message });
       }
     });
+    
+    //POST: Record payment and update payment status
+    app.post("/payments", async (req, res) => {
+  try {
+    const {
+      parcelId,
+      email,
+      amount,
+      transactionId,
+      payment_method,
+    } = req.body;
 
+    // 1️⃣ Update parcel payment status
+    const parcelUpdate = await parcelsCollection.updateOne(
+      { _id: new ObjectId(parcelId) },
+      {
+        $set: {
+          payment_status: "paid",
+        },
+      }
+    );
+    if (parcelUpdate.modifiedCount === 0) {
+      return res.status(404).send({message: 'Parcel not found or already paid'});
+    }
+
+    // 2️⃣ Save payment history
+    const paymentDoc = {
+      parcelId,
+      email,
+      amount,
+      transactionId,
+      payment_method,
+      paid_at_string: new Date().toISOString(),
+      paid_at: new Date(),
+    };
+
+    const paymentResult = await paymentsCollection.insertOne(paymentDoc);
+
+    res.send({
+      success: true,
+      parcelUpdated: parcelUpdate.modifiedCount > 0,
+      paymentInsertedId: paymentResult.insertedId,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Payment processing failed" });
+  }
+});
+
+
+    //payment intent
     app.post('/create-payment-intent', async (req,res) => {
       const amountInCents = req.body.amountInCents
       try {
