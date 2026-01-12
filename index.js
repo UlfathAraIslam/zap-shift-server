@@ -32,16 +32,12 @@ async function run() {
     await client.connect();
 
     const db = client.db("parcelDB"); // database name
-    const parcelCollection = db.collection("parcels"); // collection
-
-    app.get("/parcels", async (req, res) => {
-      const parcels = await parcelCollection.find().toArray();
-      res.send(parcels);
-    });
+    const parcelCollection = db.collection("parcels");
+    const paymentsCollection = db.collection("payments")
 
     // parcels api
     // GET parcels (all OR by created_by email) - latest first
-    app.get("/parcel", async (req, res) => {
+    app.get("/parcels", async (req, res) => {
       try {
         const email = req.query.email;
 
@@ -107,6 +103,22 @@ async function run() {
       }
     });
     
+    //Get payments
+    app.get('/payments', async (req, res) => {
+            try {
+                const userEmail = req.query.email;
+
+                const query = userEmail ? { email: userEmail } : {};
+                const options = { sort: { paid_at: -1 } }; // Latest first
+
+                const payments = await paymentsCollection.find(query, options).toArray();
+                res.send(payments);
+            } catch (error) {
+                console.error('Error fetching payment history:', error);
+                res.status(500).send({ message: 'Failed to get payments' });
+            }
+        });
+
     //POST: Record payment and update payment status
     app.post("/payments", async (req, res) => {
   try {
@@ -115,11 +127,11 @@ async function run() {
       email,
       amount,
       transactionId,
-      payment_method,
+      paymentMethod,
     } = req.body;
 
     // 1️⃣ Update parcel payment status
-    const parcelUpdate = await parcelsCollection.updateOne(
+    const parcelUpdate = await parcelCollection.updateOne(
       { _id: new ObjectId(parcelId) },
       {
         $set: {
@@ -137,17 +149,16 @@ async function run() {
       email,
       amount,
       transactionId,
-      payment_method,
+      paymentMethod,
       paid_at_string: new Date().toISOString(),
       paid_at: new Date(),
     };
 
     const paymentResult = await paymentsCollection.insertOne(paymentDoc);
 
-    res.send({
-      success: true,
-      parcelUpdated: parcelUpdate.modifiedCount > 0,
-      paymentInsertedId: paymentResult.insertedId,
+    res.status(201).send({
+      message: 'Payment recorded and parcel marked as paid',
+      insertedId: paymentResult.insertedId,
     });
   } catch (error) {
     console.error(error);
