@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const admin = require("firebase-admin");
 
 // Load environment variables from .env file
 dotenv.config();
@@ -14,6 +15,14 @@ const port = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+
+const serviceAccount = require("./firebase-admin-key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y16wuc0.mongodb.net/?appName=Cluster0`;
 
@@ -36,10 +45,33 @@ async function run() {
     const parcelCollection = db.collection("parcels");
     const paymentsCollection = db.collection("payments");
 
+    //custom middlewares
+    const verifyFBToken = async(req,res,next) => {
+      const authHeader= req.headers.authorization;
+      if(!authHeader){
+        return res.status(401).send({message: 'unauthorized access'})
+      }
+      const token = authHeader.split(" "[1]);
+      if(!token){
+        return res.status(401).send({message: 'unauthorized access'})
+      }
+
+      //verify the token
+      try{
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.decoded = decoded;
+        next();
+      }
+      catch (error) {
+        return res.status(403).send({message: 'forbidden access'})
+      }
+    }
+
     app.post("/users", async (req, res) => {
       const email = req.body.email;
       const userExists = await usersCollection.findOne({ email });
       if (userExists) {
+        //TODO: update last log in info
         return res
           .status(200)
           .send({ message: "User already exists",
@@ -119,9 +151,13 @@ async function run() {
     });
 
     //Get payments
-    app.get("/payments", async (req, res) => {
+    app.get("/payments", verifyFBToken, async (req, res) => {
       try {
         const userEmail = req.query.email;
+        console.log('decoded',req.decoded );
+        if(req.decoded.email !== userEmail){
+          return res.status(403).send({message: 'forbidden account'})
+        }
 
         const query = userEmail ? { email: userEmail } : {};
         const options = { sort: { paid_at: -1 } }; // Latest first
