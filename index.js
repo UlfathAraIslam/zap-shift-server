@@ -44,6 +44,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const parcelCollection = db.collection("parcels");
     const paymentsCollection = db.collection("payments");
+    const ridersCollection = db.collection("riders");
 
     //custom middlewares
     const verifyFBToken = async(req,res,next) => {
@@ -149,6 +150,13 @@ async function run() {
         res.status(500).send({ error: error.message });
       }
     });
+
+    //riders
+    app.post('/riders',async (req,res) => {
+      const rider = req.body;
+      const result = await ridersCollection.insertOne(rider);
+      res.send(result);
+    })
 
     //Get payments
     app.get("/payments", verifyFBToken, async (req, res) => {
