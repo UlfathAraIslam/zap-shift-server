@@ -16,13 +16,11 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-
 const serviceAccount = require("./firebase-admin-key.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
-
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y16wuc0.mongodb.net/?appName=Cluster0`;
 
@@ -47,26 +45,25 @@ async function run() {
     const ridersCollection = db.collection("riders");
 
     //custom middlewares
-    const verifyFBToken = async(req,res,next) => {
-      const authHeader= req.headers.authorization;
-      if(!authHeader){
-        return res.status(401).send({message: 'unauthorized access'})
+    const verifyFBToken = async (req, res, next) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).send({ message: "unauthorized access" });
       }
       const token = authHeader.split(" "[1]);
-      if(!token){
-        return res.status(401).send({message: 'unauthorized access'})
+      if (!token) {
+        return res.status(401).send({ message: "unauthorized access" });
       }
 
       //verify the token
-      try{
+      try {
         const decoded = await admin.auth().verifyIdToken(token);
         req.decoded = decoded;
         next();
+      } catch (error) {
+        return res.status(403).send({ message: "forbidden access" });
       }
-      catch (error) {
-        return res.status(403).send({message: 'forbidden access'})
-      }
-    }
+    };
 
     app.post("/users", async (req, res) => {
       const email = req.body.email;
@@ -75,8 +72,7 @@ async function run() {
         //TODO: update last log in info
         return res
           .status(200)
-          .send({ message: "User already exists",
-             inserted: false });
+          .send({ message: "User already exists", inserted: false });
       }
       const user = req.body;
       const result = await usersCollection.insertOne(user);
@@ -152,19 +148,46 @@ async function run() {
     });
 
     //riders
-    app.post('/riders',async (req,res) => {
+    app.post("/riders", async (req, res) => {
       const rider = req.body;
       const result = await ridersCollection.insertOne(rider);
       res.send(result);
-    })
+    });
+    // Get all pending riders
+    app.get("/riders/pending", async (req, res) => {
+      try {
+        const result = await ridersCollection
+          .find({ status: "pending" })
+          .sort({ applied_at: -1 }) // newest first
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to load pending riders" });
+      }
+    });
+
+    // Update rider status
+    app.patch("/riders/:id", async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+      query = { _id: new ObjectId(id) }
+
+      const updateDoc = await ridersCollection.updateOne(
+        query,
+        { $set: { status } }
+      );
+
+      res.send(update);
+    });
 
     //Get payments
     app.get("/payments", verifyFBToken, async (req, res) => {
       try {
         const userEmail = req.query.email;
-        console.log('decoded',req.decoded );
-        if(req.decoded.email !== userEmail){
-          return res.status(403).send({message: 'forbidden account'})
+        console.log("decoded", req.decoded);
+        if (req.decoded.email !== userEmail) {
+          return res.status(403).send({ message: "forbidden account" });
         }
 
         const query = userEmail ? { email: userEmail } : {};
