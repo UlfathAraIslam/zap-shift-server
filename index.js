@@ -171,14 +171,21 @@ async function run() {
     app.patch("/riders/:id", async (req, res) => {
       const { id } = req.params;
       const { status } = req.body;
-      query = { _id: new ObjectId(id) }
+      query = { _id: new ObjectId(id) };
 
-      const updateDoc = await ridersCollection.updateOne(
-        query,
-        { $set: { status } }
-      );
+      const updateDoc = await ridersCollection.updateOne(query, {
+        $set: { status },
+      });
 
-      res.send(update);
+      res.send(updateDoc);
+    });
+    // Get active riders
+    app.get("/riders/active", async (req, res) => {
+      const riders = await ridersCollection
+        .find({ status: "active" })
+        .sort({ approved_at: -1 })
+        .toArray();
+      res.send(riders);
     });
 
     //Get payments
@@ -216,7 +223,7 @@ async function run() {
             $set: {
               payment_status: "paid",
             },
-          }
+          },
         );
         if (parcelUpdate.modifiedCount === 0) {
           return res
@@ -265,7 +272,7 @@ async function run() {
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
+      "Pinged your deployment. You successfully connected to MongoDB!",
     );
   } finally {
     // Ensures that the client will close when you finish/error
