@@ -168,16 +168,38 @@ async function run() {
     });
 
     // Update rider status
-    app.patch("/riders/:id", async (req, res) => {
+    app.patch("/riders/:id/status", async (req, res) => {
       const { id } = req.params;
-      const { status } = req.body;
-      query = { _id: new ObjectId(id) };
+      const { status, email } = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status,
+        },
+      };
 
-      const updateDoc = await ridersCollection.updateOne(query, {
-        $set: { status },
-      });
+      try {
+        const result = await ridersCollection.updateOne(query, updateDoc);
 
-      res.send(updateDoc);
+        // update user role for accepting rider
+        if (status === "active") {
+          const userQuery = { email };
+          const userUpdateDoc = {
+            $set: {
+              role: "rider",
+            },
+          };
+          const roleResult = await usersCollection.updateOne(
+            userQuery,
+            userUpdateDoc,
+          );
+          console.log(roleResult.modifiedCount);
+        }
+
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to update rider status" });
+      }
     });
     // Get active riders
     app.get("/riders/active", async (req, res) => {
