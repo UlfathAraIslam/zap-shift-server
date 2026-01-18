@@ -50,7 +50,7 @@ async function run() {
       if (!authHeader) {
         return res.status(401).send({ message: "unauthorized access" });
       }
-      const token = authHeader.split(" "[1]);
+      const token = authHeader.split(" ")[1];
       if (!token) {
         return res.status(401).send({ message: "unauthorized access" });
       }
@@ -64,6 +64,17 @@ async function run() {
         return res.status(403).send({ message: "forbidden access" });
       }
     };
+
+    const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            if (!user || user.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
 
     app.get("/users/search", async (req, res) => {
       const emailQuery = req.query.email;
@@ -89,7 +100,7 @@ async function run() {
     // Get user role by email
     app.get("/users/:email/role", async (req, res) => {
       try {
-        const email = req.query.email;
+        const email = req.params.email;
 
         if (!email) {
           return res.status(400).send({ message: "Email is required" });
@@ -128,7 +139,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/:id/role", async (req, res) => {
+    app.patch("/users/:id/role",verifyFBToken,verifyAdmin, async (req, res) => {
       const { id } = req.params;
       const { role } = req.body;
 
@@ -223,7 +234,7 @@ async function run() {
       res.send(result);
     });
     // Get all pending riders
-    app.get("/riders/pending", async (req, res) => {
+    app.get("/riders/pending",verifyFBToken,verifyAdmin, async (req, res) => {
       try {
         const result = await ridersCollection
           .find({ status: "pending" })
@@ -271,7 +282,7 @@ async function run() {
       }
     });
     // Get active riders
-    app.get("/riders/active", async (req, res) => {
+    app.get("/riders/active",verifyFBToken,verifyAdmin, async (req, res) => {
       const riders = await ridersCollection
         .find({ status: "active" })
         .sort({ approved_at: -1 })
