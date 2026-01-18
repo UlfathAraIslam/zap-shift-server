@@ -86,6 +86,34 @@ async function run() {
       }
     });
 
+    // Get user role by email
+    app.get("/users/:email/role", async (req, res) => {
+      try {
+        const email = req.query.email;
+
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+
+        const user = await usersCollection.findOne(
+          { email },
+          { projection: { role: 1, email: 1 } },
+        );
+
+        if (!user) {
+          return res.status(404).send({ role: "user" });
+        }
+
+        res.send({
+          email: user.email,
+          role: user.role || "user",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to get user role" });
+      }
+    });
+
     app.post("/users", async (req, res) => {
       const email = req.body.email;
       const userExists = await usersCollection.findOne({ email });
@@ -101,24 +129,24 @@ async function run() {
     });
 
     app.patch("/users/:id/role", async (req, res) => {
-            const { id } = req.params;
-            const { role } = req.body;
+      const { id } = req.params;
+      const { role } = req.body;
 
-            if (!["admin", "user"].includes(role)) {
-                return res.status(400).send({ message: "Invalid role" });
-            }
+      if (!["admin", "user"].includes(role)) {
+        return res.status(400).send({ message: "Invalid role" });
+      }
 
-            try {
-                const result = await usersCollection.updateOne(
-                    { _id: new ObjectId(id) },
-                    { $set: { role } }
-                );
-                res.send({ message: `User role updated to ${role}`, result });
-            } catch (error) {
-                console.error("Error updating user role", error);
-                res.status(500).send({ message: "Failed to update user role" });
-            }
-        });
+      try {
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role } },
+        );
+        res.send({ message: `User role updated to ${role}`, result });
+      } catch (error) {
+        console.error("Error updating user role", error);
+        res.status(500).send({ message: "Failed to update user role" });
+      }
+    });
 
     // parcels api
     // GET parcels (all OR by created_by email) - latest first
