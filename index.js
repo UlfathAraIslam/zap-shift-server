@@ -161,24 +161,36 @@ async function run() {
 
     // parcels api
     // GET parcels (all OR by created_by email) - latest first
-    app.get("/parcels", async (req, res) => {
-      try {
-        const email = req.query.email;
+     app.get('/parcels', verifyFBToken, async (req, res) => {
+            try {
+                const { email, payment_status, delivery_status } = req.query;
+                let query = {}
+                if (email) {
+                    query = { created_by: email }
+                }
 
-        // if email exists → get user's parcels
-        // if not → get all parcels
-        const query = email ? { created_by: email } : {};
+                if (payment_status) {
+                    query.payment_status = payment_status
+                }
 
-        const parcels = await parcelCollection
-          .find(query)
-          .sort({ createdAt: -1 }) // latest first
-          .toArray();
+                if (delivery_status) {
+                    query.delivery_status = delivery_status
+                }
 
-        res.send(parcels);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
+                const options = {
+                    sort: { createdAt: -1 }, // Newest first
+                };
+
+                console.log('parcel query', req.query, query)
+
+                const parcels = await parcelCollection.find(query, options).toArray();
+                res.send(parcels);
+            } catch (error) {
+                console.error('Error fetching parcels:', error);
+                res.status(500).send({ message: 'Failed to get parcels' });
+            }
+        });
+
 
     // GET parcel by id
     app.get("/parcels/:id", async (req, res) => {
