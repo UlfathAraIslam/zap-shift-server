@@ -229,7 +229,7 @@ async function run() {
 
     app.patch("/parcels/:id/assign", async (req, res) => {
       const parcelId = req.params.id;
-      const { riderId, riderName } = req.body;
+      const { riderId, riderName, riderEmail } = req.body;
 
       try {
         // Update parcel
@@ -237,9 +237,10 @@ async function run() {
           { _id: new ObjectId(parcelId) },
           {
             $set: {
-              delivery_status: "in_transit",
+              delivery_status: "rider_assigned",
               assigned_rider_id: riderId,
               assigned_rider_name: riderName,
+              assigned_rider_email: riderEmail,
             },
           },
         );
