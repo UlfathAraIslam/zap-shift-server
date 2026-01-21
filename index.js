@@ -74,6 +74,15 @@ async function run() {
       }
       next();
     };
+    const verifyRider = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      if (!user || user.role !== "rider") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
 
     app.get("/users/search", async (req, res) => {
       const emailQuery = req.query.email;
@@ -214,7 +223,7 @@ async function run() {
     });
 
     // GET: Get pending delivery tasks for a rider
-    app.get("/rider/parcels", async (req, res) => {
+    app.get("/rider/parcels", verifyFBToken,verifyRider, async (req, res) => {
       try {
         const email = req.query.email;
 
@@ -238,6 +247,43 @@ async function run() {
         res.status(500).send({ message: "Failed to get rider tasks" });
       }
     });
+
+      // GET: Load completed parcel deliveries for a rider
+    app.get(
+      "/rider/completed-parcels",
+      verifyFBToken,verifyRider,
+      async (req, res) => {
+        try {
+          const email = req.query.email;
+
+          if (!email) {
+            return res.status(400).send({ message: "Rider email is required" });
+          }
+
+          const query = {
+            assigned_rider_email: email,
+            delivery_status: {
+              $in: ["delivered", "service_center_delivered"],
+            },
+          };
+
+          const options = {
+            sort: { creation_date: -1 }, // Latest first
+          };
+
+          const completedParcels = await parcelsCollection
+            .find(query, options)
+            .toArray();
+
+          res.send(completedParcels);
+        } catch (error) {
+          console.error("Error loading completed parcels:", error);
+          res
+            .status(500)
+            .send({ message: "Failed to load completed deliveries" });
+        }
+      },
+    );
 
     // POST: Create a new parcel
     app.post("/parcels", async (req, res) => {
