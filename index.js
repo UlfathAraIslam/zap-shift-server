@@ -40,7 +40,7 @@ async function run() {
 
     const db = client.db("parcelDB"); // database name
     const usersCollection = db.collection("users");
-    const parcelCollection = db.collection("parcels");
+    const parcelsCollection = db.collection("parcels");
     const paymentsCollection = db.collection("payments");
     const ridersCollection = db.collection("riders");
 
@@ -187,7 +187,7 @@ async function run() {
 
         console.log("parcel query", req.query, query);
 
-        const parcels = await parcelCollection.find(query, options).toArray();
+        const parcels = await parcelsCollection.find(query, options).toArray();
         res.send(parcels);
       } catch (error) {
         console.error("Error fetching parcels:", error);
@@ -201,7 +201,7 @@ async function run() {
         const id = req.params.id;
 
         const query = { _id: new ObjectId(id) };
-        const parcel = await parcelCollection.findOne(query);
+        const parcel = await parcelsCollection.findOne(query);
 
         if (!parcel) {
           return res.status(404).send({ message: "Parcel not found" });
@@ -214,7 +214,7 @@ async function run() {
     });
 
     // GET: Get pending delivery tasks for a rider
-    app.get("/rider/parcels", verifyFBToken, verifyRider, async (req, res) => {
+    app.get("/rider/parcels", async (req, res) => {
       try {
         const email = req.query.email;
 
@@ -245,7 +245,7 @@ async function run() {
         const newParcel = req.body;
         // newParcel.createdAt = new Date();
 
-        const result = await parcelCollection.insertOne(newParcel);
+        const result = await parcelsCollection.insertOne(newParcel);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error inserting parcel:", error);
@@ -259,7 +259,7 @@ async function run() {
 
       try {
         // Update parcel
-        await parcelCollection.updateOne(
+        await parcelsCollection.updateOne(
           { _id: new ObjectId(parcelId) },
           {
             $set: {
@@ -288,6 +288,32 @@ async function run() {
       }
     });
 
+    app.patch("/parcels/:id/status", async (req, res) => {
+      const parcelId = req.params.id;
+      const { status } = req.body;
+      const updatedDoc = {
+        delivery_status: status,
+      };
+
+      if (status === "in_transit") {
+        updatedDoc.picked_at = new Date().toISOString();
+      } else if (status === "delivered") {
+        updatedDoc.delivered_at = new Date().toISOString();
+      }
+
+      try {
+        const result = await parcelsCollection.updateOne(
+          { _id: new ObjectId(parcelId) },
+          {
+            $set: updatedDoc,
+          },
+        );
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to update status" });
+      }
+    });
+
     // DELETE parcel by id
     app.delete("/parcels/:id", async (req, res) => {
       try {
@@ -295,7 +321,7 @@ async function run() {
 
         const query = { _id: new ObjectId(id) };
 
-        const result = await parcelCollection.deleteOne(query);
+        const result = await parcelsCollection.deleteOne(query);
 
         res.send(result);
       } catch (error) {
@@ -447,7 +473,7 @@ async function run() {
           req.body;
 
         // 1️⃣ Update parcel payment status
-        const parcelUpdate = await parcelCollection.updateOne(
+        const parcelUpdate = await parcelsCollection.updateOne(
           { _id: new ObjectId(parcelId) },
           {
             $set: {
