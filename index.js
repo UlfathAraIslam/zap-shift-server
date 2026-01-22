@@ -223,7 +223,7 @@ async function run() {
     });
 
     // GET: Get pending delivery tasks for a rider
-    app.get("/rider/parcels", verifyFBToken,verifyRider, async (req, res) => {
+    app.get("/rider/parcels", verifyFBToken, verifyRider, async (req, res) => {
       try {
         const email = req.query.email;
 
@@ -248,10 +248,11 @@ async function run() {
       }
     });
 
-      // GET: Load completed parcel deliveries for a rider
+    // GET: Load completed parcel deliveries for a rider
     app.get(
       "/rider/completed-parcels",
-      verifyFBToken,verifyRider,
+      verifyFBToken,
+      verifyRider,
       async (req, res) => {
         try {
           const email = req.query.email;
@@ -360,6 +361,19 @@ async function run() {
       }
     });
 
+    app.patch("/parcels/:id/cashout", async (req, res) => {
+      const id = req.params.id;
+      const result = await parcelsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            cashout_status: "cashed_out",
+            cashed_out_at: new Date(),
+          },
+        },
+      );
+      res.send(result);
+    });
     // DELETE parcel by id
     app.delete("/parcels/:id", async (req, res) => {
       try {
