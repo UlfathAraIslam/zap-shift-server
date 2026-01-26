@@ -41,6 +41,7 @@ async function run() {
     const db = client.db("parcelDB"); // database name
     const usersCollection = db.collection("users");
     const parcelsCollection = db.collection("parcels");
+    const trackingsCollection = db.collection("trackings");
     const paymentsCollection = db.collection("payments");
     const ridersCollection = db.collection("riders");
 
@@ -338,6 +339,7 @@ async function run() {
     app.patch("/parcels/:id/status", async (req, res) => {
       const parcelId = req.params.id;
       const { status } = req.body;
+      //set parcel delivery time
       const updatedDoc = {
         delivery_status: status,
       };
@@ -387,6 +389,31 @@ async function run() {
       } catch (error) {
         res.status(500).send({ error: error.message });
       }
+    });
+
+    app.get("/trackings/:trackingId", async (req, res) => {
+      const trackingId = req.params.trackingId;
+
+      const updates = await trackingsCollection
+        .find({ tracking_id: trackingId })
+        .sort({ timestamp: 1 }) // sort by time ascending
+        .toArray();
+
+      res.json(updates);
+    });
+
+    app.post("/trackings", async (req, res) => {
+      const update = req.body;
+
+      update.timestamp = new Date(); // ensure correct timestamp
+      if (!update.tracking_id || !update.status) {
+        return res
+          .status(400)
+          .json({ message: "tracking_id and status are required." });
+      }
+
+      const result = await trackingsCollection.insertOne(update);
+      res.status(201).json(result);
     });
 
     //riders
